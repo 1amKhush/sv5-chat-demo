@@ -4,7 +4,7 @@
 	import { getOpenAIService, resetOpenAIService } from '$lib/services/llm';
 
 	// Configuration state
-	let baseURL = $state('https://api.openai.com');
+	let baseURL = $state('https://api.openai.com/v1');
 	let apiKey = $state('');
 	let model = $state('gpt-4o');
 
@@ -39,5 +39,5 @@
 
 <div class="container mx-auto flex h-screen max-w-4xl flex-col overflow-hidden p-4">
 	<OpenAIConfig bind:baseURL bind:apiKey bind:model onSave={handleConfigSave} />
-	<Chat title="OpenAI Chat" subtitle="Powered by OpenAI GPT-4" {model} />
+	<Chat title="OpenAI Chat" subtitle="Powered by {model}" {model} />
 </div>

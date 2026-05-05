@@ -12,10 +12,8 @@ type LLMConfigInput = Omit<LLMConfig, 'model'> & { model?: string };
 
 function normalizeBaseURL(raw: string): string {
 	let url = raw.trim();
-	for (const suffix of ['/chat/completions', '/v1/chat/completions']) {
-		if (url.endsWith(suffix)) {
-			url = url.slice(0, -suffix.length);
-		}
+	if (url.endsWith('/chat/completions')) {
+		url = url.slice(0, -17);
 	}
 	return url.replace(/\/+$/, '');
 }
@@ -125,46 +123,28 @@ export class LLMService {
 
 		try {
 			if (onChunk) {
-				try {
-					const stream = await this.client.chat.completions.create(
-						{
-							model,
-							messages: apiMessages,
-							stream: true,
-							max_tokens: 4096,
-							temperature: 0.7
-						},
-						{ signal: abortSignal }
-					);
+				const stream = await this.client.chat.completions.create(
+					{
+						model,
+						messages: apiMessages,
+						stream: true,
+						max_tokens: 4096,
+						temperature: 0.7
+					},
+					{ signal: abortSignal }
+				);
 
-					let fullResponse = '';
+				let fullResponse = '';
 
-					for await (const chunk of stream) {
-						const content = chunk.choices[0]?.delta?.content || '';
-						if (content) {
-							fullResponse += content;
-							onChunk(content);
-						}
+				for await (const chunk of stream) {
+					const content = chunk.choices[0]?.delta?.content || '';
+					if (content) {
+						fullResponse += content;
+						onChunk(content);
 					}
-
-					return fullResponse;
-				} catch {
-					const fallback = await this.client.chat.completions.create(
-						{
-							model,
-							messages: apiMessages,
-							stream: false,
-							max_tokens: 4096,
-							temperature: 0.7
-						},
-						{ signal: abortSignal }
-					);
-					const fullResponse = fallback.choices[0]?.message?.content || '';
-					if (fullResponse) {
-						onChunk(fullResponse);
-					}
-					return fullResponse;
 				}
+
+				return fullResponse;
 			}
 
 			const response = await this.client.chat.completions.create(
@@ -196,10 +176,14 @@ export async function testConnection(
 	});
 
 	try {
-		await testClient.models.list();
+		const models = await testClient.models.list();
+		const modelExists = models.data.some((m) => m.id === safeConfig.model);
+		if (!modelExists && models.data.length > 0) {
+			return { ok: false, error: `Model "${safeConfig.model}" not found on provider.` };
+		}
 		return { ok: true };
 	} catch (error) {
-		return { ok: false, error: error instanceof Error ? error.message : String(error) };
+		return { ok: false, error: mapAPIError(error).message };
 	}
 }
 
