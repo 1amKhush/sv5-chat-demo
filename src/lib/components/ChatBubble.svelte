@@ -4,7 +4,7 @@
 	interface Message {
 		id: number;
 		text: string;
-		sender: 'user' | 'bot';
+		sender: 'user' | 'assistant';
 		timestamp: Date;
 	}
 
@@ -32,7 +32,7 @@
 			</AvatarFallback>
 		{:else}
 			<AvatarFallback class="bg-secondary text-secondary-foreground">
-				{getInitials('Bot')}
+				{getInitials('Assistant')}
 			</AvatarFallback>
 		{/if}
 	</Avatar>
@@ -66,8 +66,8 @@
 				class="max-w-[80%] rounded-lg px-3 py-2 break-words"
 				class:bg-primary={message.sender === 'user'}
 				class:text-primary-foreground={message.sender === 'user'}
-				class:bg-muted={message.sender === 'bot'}
-				class:text-foreground={message.sender === 'bot'}
+				class:bg-muted={message.sender === 'assistant'}
+				class:text-foreground={message.sender === 'assistant'}
 			>
 				{message.text}
 			</div>

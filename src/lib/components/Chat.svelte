@@ -4,11 +4,12 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { browser } from '$app/environment';
 	import ScrollArea from './ui/scroll-area/scroll-area.svelte';
+	import { getOpenAIService, type ChatMessage } from '$lib/services/openai';
 
 	interface Message {
 		id: number;
 		text: string;
-		sender: 'user' | 'bot';
+		sender: 'user' | 'assistant';
 		timestamp: Date;
 	}
 
@@ -25,19 +26,22 @@
 					{
 						id: 1,
 						text: 'Hello! Welcome to our chat interface. How can I help you today?',
-						sender: 'bot',
+						sender: 'assistant',
 						timestamp: new Date()
 					}
 				]
 	);
 	let isLoading = $state(false);
 	let viewportRef = $state<HTMLElement | null>(null);
+	let streamingMessage = $state('');
+	let error = $state<string | null>(null);
 
 	$effect(() => {
 		if (!browser) return;
 		// This effect runs whenever messages or isLoading changes
 		messages;
 		isLoading;
+		streamingMessage;
 
 		// Wait for DOM update, then scroll to bottom
 		setTimeout(() => {
@@ -45,7 +49,10 @@
 		}, 0);
 	});
 
-	function handleSendMessage(text: string) {
+	async function handleSendMessage(text: string) {
+		// Clear any previous errors
+		error = null;
+
 		// Add user message
 		const userMessage: Message = {
 			id: messages.length + 1,
@@ -55,18 +62,61 @@
 		};
 		messages = [...messages, userMessage];
 
-		// Simulate bot response
+		// Get OpenAI service
+		const openAIService = getOpenAIService();
+		console.log('OpenAI service status:', {
+			isConfigured: openAIService?.isConfigured(),
+			hasService: !!openAIService
+		});
+
+		if (!openAIService || !openAIService.isConfigured()) {
+			error = 'OpenAI service not configured. Please set your API key and base URL in the configuration.';
+			return;
+		}
+
+		// Convert messages to OpenAI format
+		const chatMessages: ChatMessage[] = messages.map(msg => ({
+			role: msg.sender === 'user' ? 'user' : 'assistant',
+			content: msg.text
+		}));
+
+		// Add system message for better context
+		chatMessages.unshift({
+			role: 'system',
+			content: 'You are a helpful AI assistant. Provide clear and concise responses.'
+		});
+
+		// Start streaming response
 		isLoading = true;
-		setTimeout(() => {
-			const botMessage: Message = {
-				id: messages.length + 1,
-				text: 'Thanks for your message! This is a demo response.',
-				sender: 'bot',
+		streamingMessage = '';
+
+		try {
+			let fullResponse = '';
+			console.log('Starting OpenAI streaming request...');
+			
+			await openAIService.sendMessage(chatMessages, (chunk) => {
+				fullResponse += chunk;
+				streamingMessage = fullResponse;
+				console.log('Received chunk, current length:', fullResponse.length);
+			});
+
+			// Add the complete assistant message
+			const assistantMessage: Message = {
+				id: messages.length + 2,
+				text: fullResponse,
+				sender: 'assistant',
 				timestamp: new Date()
 			};
-			messages = [...messages, botMessage];
+			
+			console.log('Streaming completed, final message length:', fullResponse.length);
+			messages = [...messages, assistantMessage];
+			streamingMessage = '';
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'An unknown error occurred';
+			console.error('OpenAI API error in Chat component:', err);
+		} finally {
 			isLoading = false;
-		}, 1000);
+		}
 	}
 
 	function scrollToBottom() {
@@ -91,12 +141,22 @@
 					{#each messages as message}
 						<ChatBubble {message} />
 					{/each}
-					{#if isLoading}
+					{#if streamingMessage}
+						<ChatBubble
+							message={{
+								id: messages.length + 1,
+								text: streamingMessage,
+								sender: 'assistant',
+								timestamp: new Date()
+							}}
+						/>
+					{/if}
+					{#if isLoading && !streamingMessage}
 						<ChatBubble
 							message={{
 								id: messages.length + 1,
 								text: '',
-								sender: 'bot',
+								sender: 'assistant',
 								timestamp: new Date()
 							}}
 							isLoading={true}
@@ -107,6 +167,11 @@
 		</div>
 
 		<div class="border-t p-4">
+			{#if error}
+				<div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
+					{error}
+				</div>
+			{/if}
 			<ChatInput onSend={handleSendMessage} {isLoading} />
 		</div>
 	</CardContent>
