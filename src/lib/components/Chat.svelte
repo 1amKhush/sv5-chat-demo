@@ -4,14 +4,8 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { browser } from '$app/environment';
 	import ScrollArea from './ui/scroll-area/scroll-area.svelte';
-	import { getOpenAIService, type ChatMessage } from '$lib/services/llm';
-
-	interface Message {
-		id: number;
-		text: string;
-		sender: 'user' | 'assistant';
-		timestamp: Date;
-	}
+	import { getOpenAIService } from '$lib/services/llm';
+	import type { Message } from '$lib/types';
 
 	let {
 		title = 'Chat Interface',
@@ -20,22 +14,12 @@
 		model = 'gpt-4o'
 	} = $props();
 
-	let messages = $state<Message[]>(
-		initialMessages.length > 0
-			? initialMessages
-			: [
-					{
-						id: 1,
-						text: 'Hello! Welcome to our chat interface. How can I help you today?',
-						sender: 'assistant',
-						timestamp: new Date()
-					}
-				]
-	);
+	let messages = $state<Message[]>(initialMessages);
 	let isLoading = $state(false);
 	let viewportRef = $state<HTMLElement | null>(null);
 	let streamingMessage = $state('');
 	let error = $state<string | null>(null);
+	let abortController = $state<AbortController | null>(null);
 
 	$effect(() => {
 		if (!browser) return;
@@ -51,73 +35,81 @@
 	});
 
 	async function handleSendMessage(text: string) {
-		// Clear any previous errors
+		if (!text.trim()) return;
 		error = null;
 
-		// Add user message
 		const userMessage: Message = {
-			id: messages.length + 1,
-			text: text,
-			sender: 'user',
+			id: crypto.randomUUID(),
+			content: text,
+			role: 'user',
 			timestamp: new Date()
 		};
 		messages = [...messages, userMessage];
 
-		// Get OpenAI service
 		const openAIService = getOpenAIService();
-		console.log('OpenAI service status:', {
-			isConfigured: openAIService?.isConfigured(),
-			hasService: !!openAIService
-		});
-
 		if (!openAIService || !openAIService.isConfigured()) {
-			error = 'OpenAI service not configured. Please set your API key and base URL in the configuration.';
+			error =
+				'OpenAI service not configured. Please set your API key and base URL in the configuration.';
 			return;
 		}
 
-		// Convert messages to OpenAI format
-		const chatMessages: ChatMessage[] = messages.map(msg => ({
-			role: msg.sender === 'user' ? 'user' : 'assistant',
-			content: msg.text
-		}));
-
-		// Add system message for better context
-		chatMessages.unshift({
-			role: 'system',
-			content: 'You are a helpful AI assistant. Provide clear and concise responses.'
-		});
-
-		// Start streaming response
+		const controller = new AbortController();
+		abortController = controller;
 		isLoading = true;
 		streamingMessage = '';
 
 		try {
 			let fullResponse = '';
-			console.log('Starting OpenAI streaming request...');
-			
-			await openAIService.sendMessage(chatMessages, model, (chunk) => {
-				fullResponse += chunk;
-				streamingMessage = fullResponse;
-				console.log('Received chunk, current length:', fullResponse.length);
-			});
-
-			// Add the complete assistant message
-			const assistantMessage: Message = {
-				id: messages.length + 2,
-				text: fullResponse,
-				sender: 'assistant',
+			const systemMessage: Message = {
+				id: crypto.randomUUID(),
+				content: 'You are a helpful AI assistant. Provide clear and concise responses.',
+				role: 'system',
 				timestamp: new Date()
 			};
-			
-			console.log('Streaming completed, final message length:', fullResponse.length);
-			messages = [...messages, assistantMessage];
-			streamingMessage = '';
+			const apiMessages = [systemMessage, ...messages];
+
+			await openAIService.sendMessage(
+				apiMessages,
+				model,
+				(chunk) => {
+					fullResponse += chunk;
+					streamingMessage = fullResponse;
+				},
+				controller.signal
+			);
+
+			if (fullResponse) {
+				const assistantMessage: Message = {
+					id: crypto.randomUUID(),
+					content: fullResponse,
+					role: 'assistant',
+					timestamp: new Date()
+				};
+				messages = [...messages, assistantMessage];
+			}
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'An unknown error occurred';
-			console.error('OpenAI API error in Chat component:', err);
+			if (controller.signal.aborted) {
+				if (streamingMessage) {
+					const partialMessage: Message = {
+						id: crypto.randomUUID(),
+						content: streamingMessage,
+						role: 'assistant',
+						timestamp: new Date()
+					};
+					messages = [...messages, partialMessage];
+				}
+			} else {
+				error = err instanceof Error ? err.message : 'An unknown error occurred';
+			}
 		} finally {
 			isLoading = false;
+			streamingMessage = '';
+			abortController = null;
 		}
+	}
+
+	function handleCancel() {
+		abortController?.abort();
 	}
 
 	function scrollToBottom() {
@@ -139,29 +131,35 @@
 		<div class="flex-1 overflow-hidden">
 			<ScrollArea class="h-full" bind:viewportRef>
 				<div class="space-y-4 p-4">
-					{#each messages as message}
-						<ChatBubble {message} />
-					{/each}
-					{#if streamingMessage}
-						<ChatBubble
-							message={{
-								id: messages.length + 1,
-								text: streamingMessage,
-								sender: 'assistant',
-								timestamp: new Date()
-							}}
-						/>
-					{/if}
-					{#if isLoading && !streamingMessage}
-						<ChatBubble
-							message={{
-								id: messages.length + 1,
-								text: '',
-								sender: 'assistant',
-								timestamp: new Date()
-							}}
-							isLoading={true}
-						/>
+					{#if messages.length === 0 && !streamingMessage}
+						<div class="flex h-full items-center justify-center text-muted-foreground">
+							<p>Send a message to start chatting.</p>
+						</div>
+					{:else}
+						{#each messages as message}
+							<ChatBubble {message} />
+						{/each}
+						{#if streamingMessage}
+							<ChatBubble
+								message={{
+									id: 'streaming',
+									content: streamingMessage,
+									role: 'assistant',
+									timestamp: new Date()
+								}}
+							/>
+						{/if}
+						{#if isLoading && !streamingMessage}
+							<ChatBubble
+								message={{
+									id: 'loading',
+									content: '',
+									role: 'assistant',
+									timestamp: new Date()
+								}}
+								isLoading={true}
+							/>
+						{/if}
 					{/if}
 				</div>
 			</ScrollArea>
@@ -169,11 +167,11 @@
 
 		<div class="border-t p-4">
 			{#if error}
-				<div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
+				<div class="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
 					{error}
 				</div>
 			{/if}
-			<ChatInput onSend={handleSendMessage} {isLoading} />
+			<ChatInput onSend={handleSendMessage} onCancel={handleCancel} {isLoading} />
 		</div>
 	</CardContent>
 </Card>

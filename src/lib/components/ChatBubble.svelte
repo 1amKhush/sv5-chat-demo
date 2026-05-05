@@ -1,12 +1,6 @@
 <script lang="ts">
 	import { Avatar, AvatarFallback } from '$lib/components/ui/avatar';
-
-	interface Message {
-		id: number;
-		text: string;
-		sender: 'user' | 'assistant';
-		timestamp: Date;
-	}
+	import type { Message } from '$lib/types';
 
 	let { message, isLoading = false }: { message: Message; isLoading?: boolean } = $props();
 
@@ -24,9 +18,9 @@
 	}
 </script>
 
-<div class="flex items-end gap-2 {message.sender === 'user' ? 'flex-row-reverse' : ''}">
+<div class="flex items-end gap-2 {message.role === 'user' ? 'flex-row-reverse' : ''}">
 	<Avatar class="h-8 w-8 flex-shrink-0">
-		{#if message.sender === 'user'}
+		{#if message.role === 'user'}
 			<AvatarFallback class="bg-primary text-primary-foreground">
 				{getInitials('You')}
 			</AvatarFallback>
@@ -37,10 +31,10 @@
 		{/if}
 	</Avatar>
 
-	<div class="flex flex-col {message.sender === 'user' ? 'items-end' : 'items-start'}">
+	<div class="flex flex-col {message.role === 'user' ? 'items-end' : 'items-start'}">
 		<div class="mb-1 flex items-center gap-2">
 			<span class="text-sm font-semibold">
-				{message.sender === 'user' ? 'You' : 'Assistant'}
+				{message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Assistant' : 'System'}
 			</span>
 			<span class="text-xs text-muted-foreground">
 				{formatTime(message.timestamp)}
@@ -64,12 +58,12 @@
 		{:else}
 			<div
 				class="max-w-[80%] rounded-lg px-3 py-2 break-words"
-				class:bg-primary={message.sender === 'user'}
-				class:text-primary-foreground={message.sender === 'user'}
-				class:bg-muted={message.sender === 'assistant'}
-				class:text-foreground={message.sender === 'assistant'}
+				class:bg-primary={message.role === 'user'}
+				class:text-primary-foreground={message.role === 'user'}
+				class:bg-muted={message.role !== 'user'}
+				class:text-foreground={message.role !== 'user'}
 			>
-				{message.text}
+				{message.content}
 			</div>
 		{/if}
 	</div>
