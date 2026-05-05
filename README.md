@@ -1,38 +1,46 @@
-# sv
+# sv5-chat-demo
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Bring-your-own-key (BYOT) chat UI built with SvelteKit 2 + Svelte 5. It connects directly to any OpenAI-compatible API from the browser.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- BYOT configuration for base URL, API key, and model
+- Streaming responses with cancel support
+- Markdown rendering for assistant replies
+- Settings persisted in localStorage
 
-```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Getting started
 
 ```sh
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Open the app and click the settings icon to configure your provider.
 
-To create a production version of your app:
+## Configuration
 
-```sh
-npm run build
-```
+Set these fields in the settings panel:
 
-You can preview the production build with `npm run preview`.
+- Base URL
+- API key
+- Model
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Example OpenAI-compatible base URLs:
+
+- OpenAI: https://api.openai.com/v1
+- Groq: https://api.groq.com/openai/v1
+- Ollama: http://localhost:11434/v1
+- LM Studio: http://localhost:1234/v1
+
+Notes:
+
+- Model names are provider-specific (for example, `gpt-4o` on OpenAI).
+- Keys are stored in localStorage in your browser.
+- The OpenAI SDK runs in the browser, so self-hosted providers must allow CORS.
+
+## Scripts
+
+- npm run dev
+- npm run build
+- npm run preview
