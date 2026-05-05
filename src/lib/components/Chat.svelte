@@ -16,7 +16,8 @@
 	let {
 		title = 'Chat Interface',
 		subtitle = 'Demo chat using Svelte 5 and ShadCN',
-		initialMessages = [] as Message[]
+		initialMessages = [] as Message[],
+		model = 'gpt-4o'
 	} = $props();
 
 	let messages = $state<Message[]>(
@@ -94,7 +95,7 @@
 			let fullResponse = '';
 			console.log('Starting OpenAI streaming request...');
 			
-			await openAIService.sendMessage(chatMessages, (chunk) => {
+			await openAIService.sendMessage(chatMessages, model, (chunk) => {
 				fullResponse += chunk;
 				streamingMessage = fullResponse;
 				console.log('Received chunk, current length:', fullResponse.length);

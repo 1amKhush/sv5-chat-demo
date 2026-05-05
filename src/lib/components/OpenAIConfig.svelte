@@ -8,25 +8,43 @@
 	let {
 		baseURL = $bindable('https://api.openai.com'),
 		apiKey = $bindable(''),
+		model = $bindable('gpt-4o'),
 		onSave = () => {}
 	} = $props();
 
 	let isOpen = $state(false);
 	let tempBaseURL = $state(baseURL);
 	let tempAPIKey = $state(apiKey);
+	let tempModel = $state(model);
 	let testResult = $state('');
 	let isTesting = $state(false);
+	let saveNotice = $state(false);
+	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	async function handleSave() {
 		baseURL = tempBaseURL;
 		apiKey = tempAPIKey;
+		model = tempModel;
 		onSave();
-		isOpen = false;
+		saveNotice = true;
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+		}
+		saveTimeout = setTimeout(() => {
+			saveNotice = false;
+			isOpen = false;
+		}, 1200);
 	}
 
 	function handleCancel() {
 		tempBaseURL = baseURL;
 		tempAPIKey = apiKey;
+		tempModel = model;
+		saveNotice = false;
+		if (saveTimeout) {
+			clearTimeout(saveTimeout);
+			saveTimeout = null;
+		}
 		isOpen = false;
 	}
 
@@ -35,7 +53,11 @@
 		testResult = 'Testing connection...';
 		
 		try {
-			const result = await testConnection({ baseURL: tempBaseURL, apiKey: tempAPIKey });
+			const result = await testConnection({
+				baseURL: tempBaseURL,
+				apiKey: tempAPIKey,
+				model: tempModel
+			});
 			testResult = result.ok
 				? 'Connection successful.'
 				: `Connection failed: ${result.error ?? 'Unknown error'}`;
@@ -73,6 +95,15 @@
 					/>
 				</div>
 				<div class="space-y-2">
+					<label for="model" class="text-sm font-medium">Model</label>
+					<Input
+						id="model"
+						type="text"
+						placeholder="gpt-4o"
+						bind:value={tempModel}
+					/>
+				</div>
+				<div class="space-y-2">
 					<label for="api-key" class="text-sm font-medium">API Key</label>
 					<Input
 						id="api-key"
@@ -87,7 +118,7 @@
 					</Button>
 				</div>
 				{#if testResult}
-					<div class="mt-4 rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+					<div class="mt-4 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs font-mono text-muted-foreground">
 						{testResult}
 					</div>
 				{/if}
@@ -97,6 +128,9 @@
 						Cancel
 					</Button>
 				</div>
+				{#if saveNotice}
+					<p class="text-xs text-muted-foreground">Saved</p>
+				{/if}
 			</CardContent>
 		</Card>
 	{/if}
