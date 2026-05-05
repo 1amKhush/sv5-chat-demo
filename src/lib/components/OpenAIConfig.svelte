@@ -26,6 +26,7 @@
 		apiKey = tempAPIKey;
 		model = tempModel;
 		onSave();
+		testResult = '';
 		saveNotice = true;
 		if (saveTimeout) {
 			clearTimeout(saveTimeout);
@@ -40,6 +41,7 @@
 		tempBaseURL = baseURL;
 		tempAPIKey = apiKey;
 		tempModel = model;
+		testResult = '';
 		saveNotice = false;
 		if (saveTimeout) {
 			clearTimeout(saveTimeout);
