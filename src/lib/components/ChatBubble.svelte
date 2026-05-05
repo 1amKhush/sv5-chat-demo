@@ -1,8 +1,14 @@
 <script lang="ts">
 	import { Avatar, AvatarFallback } from '$lib/components/ui/avatar';
 	import type { Message } from '$lib/types';
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
 
 	let { message, isLoading = false }: { message: Message; isLoading?: boolean } = $props();
+
+	const renderedHTML = $derived(
+		message.role === 'assistant' ? DOMPurify.sanitize(marked.parse(message.content)) : ''
+	);
 
 	function getInitials(name: string): string {
 		return name
@@ -63,7 +69,13 @@
 				class:bg-muted={message.role !== 'user'}
 				class:text-foreground={message.role !== 'user'}
 			>
-				{message.content}
+				{#if message.role === 'assistant'}
+					<div class="prose prose-sm max-w-none dark:prose-invert">
+						{@html renderedHTML}
+					</div>
+				{:else}
+					{message.content}
+				{/if}
 			</div>
 		{/if}
 	</div>
