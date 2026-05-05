@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { browser } from '$app/environment';
 	import ScrollArea from './ui/scroll-area/scroll-area.svelte';
-	import { getOpenAIService, type ChatMessage } from '$lib/services/openai';
+	import { getOpenAIService, type ChatMessage } from '$lib/services/llm';
 
 	interface Message {
 		id: number;

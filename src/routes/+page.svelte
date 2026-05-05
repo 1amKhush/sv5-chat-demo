@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Chat from '$lib/components/Chat.svelte';
 	import OpenAIConfig from '$lib/components/OpenAIConfig.svelte';
-	import { getOpenAIService, resetOpenAIService } from '$lib/services/openai';
+	import { getOpenAIService, resetOpenAIService } from '$lib/services/llm';
 
 	// Configuration state
 	let baseURL = $state('https://api.openai.com');

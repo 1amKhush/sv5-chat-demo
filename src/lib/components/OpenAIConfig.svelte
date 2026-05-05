@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { Settings } from 'lucide-svelte';
-	import { getOpenAIService } from '$lib/services/openai';
+	import { testConnection } from '$lib/services/llm';
 
 	let {
 		baseURL = $bindable('https://api.openai.com'),
@@ -35,13 +35,10 @@
 		testResult = 'Testing connection...';
 		
 		try {
-			const service = getOpenAIService({ baseURL: tempBaseURL, apiKey: tempAPIKey });
-			if (service) {
-				const result = await service.testDirectConnection();
-				testResult = result;
-			} else {
-				testResult = 'Failed to initialize service';
-			}
+			const result = await testConnection({ baseURL: tempBaseURL, apiKey: tempAPIKey });
+			testResult = result.ok
+				? 'Connection successful.'
+				: `Connection failed: ${result.error ?? 'Unknown error'}`;
 		} catch (error) {
 			testResult = `Test failed: ${error instanceof Error ? error.message : String(error)}`;
 		} finally {
