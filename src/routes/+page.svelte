@@ -3,13 +3,6 @@
 	import OpenAIConfig from '$lib/components/OpenAIConfig.svelte';
 	import { getOpenAIService, resetOpenAIService } from '$lib/services/openai';
 
-	interface Message {
-		id: number;
-		text: string;
-		sender: 'user' | 'assistant';
-		timestamp: Date;
-	}
-
 	// Configuration state
 	let baseURL = $state('https://api.openai.com');
 	let apiKey = $state('');
