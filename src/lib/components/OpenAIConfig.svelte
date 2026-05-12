@@ -20,6 +20,22 @@
 	let isTesting = $state(false);
 	let saveNotice = $state(false);
 	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+	let wasOpen = $state(false);
+
+	$effect(() => {
+		if (isOpen && !wasOpen) {
+			tempBaseURL = baseURL;
+			tempAPIKey = apiKey;
+			tempModel = model;
+			testResult = '';
+			saveNotice = false;
+			if (saveTimeout) {
+				clearTimeout(saveTimeout);
+				saveTimeout = null;
+			}
+		}
+		wasOpen = isOpen;
+	});
 
 	async function handleSave() {
 		baseURL = tempBaseURL;
